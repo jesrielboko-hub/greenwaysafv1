@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= meta.full %></title>
+<% if (meta.description) { %><meta name="description" content="<%= meta.description %>"><% } %>
+<link rel="canonical" href="<%= meta.canonical %>">
+<% if (meta.noindex) { %><meta name="robots" content="noindex,follow"><% } %>
+<meta name="theme-color" content="#0F5132">
+<meta property="og:site_name" content="<%= S.name %>"><meta property="og:type" content="website">
+<meta property="og:title" content="<%= meta.full %>"><meta property="og:description" content="<%= meta.description %>">
+<meta property="og:url" content="<%= meta.canonical %>">
+<% const og = meta.ogImage || S.ogImage || '/img/logo.png'; %><meta property="og:image" content="<%= og.startsWith('http') ? og : base + og %>">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@500;600;700;800&display=swap">
+<link rel="stylesheet" href="/css/site.css?v=1">
+<%
+const org = { '@context': 'https://schema.org', '@type': 'LocalBusiness', '@id': base + '/#org', name: S.name, url: base, logo: base + '/img/logo.png',
+  description: S.name + ' constructs, renovates and maintains athletic fields for municipalities, schools, universities and sports organizations.' };
+if (S.phone) org.telephone = S.phone; if (S.email) org.email = S.email; if (S.address) org.address = { '@type': 'PostalAddress', streetAddress: S.address };
+if (S.serviceArea) org.areaServed = S.serviceArea;
+const same = [S.linkedin, S.facebook, S.instagram, S.youtube].filter(Boolean); if (same.length) org.sameAs = same;
+const ld = [org, { '@context': 'https://schema.org', '@type': 'WebSite', name: S.name, url: base }];
+if (meta.crumbs && meta.crumbs.length > 1) ld.push({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: meta.crumbs.map((c, i) => ({ '@type': 'ListItem', position: i + 1, name: c[0], item: base + c[1] })) });
+(meta.ld || []).forEach((x) => ld.push({ '@context': 'https://schema.org', ...x }));
+%>
+<% ld.forEach((x) => { %><script type="application/ld+json"><%- JSON.stringify(x).replace(/</g, '\\u003c') %></script>
+<% }) %>
+<% if (S.gaId) { %><script async src="https://www.googletagmanager.com/gtag/js?id=<%= S.gaId %>"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','<%= S.gaId %>');</script><% } %>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="hdr">
+  <div class="wrap hdr-in">
+    <a class="logo" href="/" aria-label="<%= S.name %> home"><img src="/img/logo.png" alt="<%= S.name %>" width="150" height="54"></a>
+    <button class="burger" aria-label="Menu" aria-expanded="false" aria-controls="nav"><%- icon('menu') %></button>
+    <nav id="nav" class="nav" aria-label="Main">
+      <a href="/">Home</a>
+      <div class="dd"><a href="/services">Services</a>
+        <div class="dd-menu">
+          <a href="/services#build">Construction</a><a href="/services#renovate">Renovation</a><a href="/services#fix">Drainage, Irrigation &amp; Repairs</a>
+          <a href="/services#maintain">Maintenance</a><a href="/services#specialty">Infield &amp; Specialty Services</a>
+        </div></div>
+      <a href="/projects">Projects</a>
+      <div class="dd"><a href="/industries">Who We Serve</a>
+        <div class="dd-menu"><% industriesNav.forEach((i) => { %><a href="/industries/<%= i.slug %>"><%= i.name %></a><% }) %></div></div>
+      <a href="/about">About</a><a href="/resources">Resources</a><a href="/contact">Contact</a>
+      <a class="btn btn-primary btn-sm nav-cta" href="/contact" data-track="cta_request_assessment" data-loc="header">Request a Field Assessment <%- icon('arrow') %></a>
+    </nav>
+  </div>
+</header>
+<main id="main">
+<% if (meta.crumbs && meta.crumbs.length > 1) { %>
+<nav class="crumbs wrap" aria-label="Breadcrumb"><ol><% meta.crumbs.forEach((c, i) => { %><li><% if (i < meta.crumbs.length - 1) { %><a href="<%= c[1] %>"><%= c[0] %></a><% } else { %><span aria-current="page"><%= c[0] %></span><% } %></li><% }) %></ol></nav>
+<% } %>
+<%- body %>
+</main>
+<footer class="ftr">
+  <div class="wrap ftr-grid">
+    <div>
+      <div class="wordmark">GREENWAY</div><div class="wordsub">ATHLETIC FIELD SERVICES</div>
+      <p class="ftr-tag"><%= S.tagline %></p>
+      <p class="small"><%= S.name %> constructs, renovates and maintains athletic fields for municipalities, schools, universities and sports organizations.</p>
+    </div>
+    <div><h3>Services</h3><a href="/services#build">Construction</a><a href="/services#renovate">Renovation</a><a href="/services#fix">Drainage &amp; Irrigation</a><a href="/services#maintain">Maintenance</a><a href="/services#specialty">Specialty</a></div>
+    <div><h3>Company</h3><a href="/projects">Projects</a><a href="/industries">Who We Serve</a><a href="/about">About</a><a href="/resources">Resources</a><a href="/contact">Contact</a></div>
+    <div><h3>Contact</h3>
+      <% if (S.phone) { %><a href="tel:<%= tel %>" data-track="phone_click"><%= S.phone %></a><% } else { %><%- ph('[ADD PHONE in Admin → Settings]') %><% } %>
+      <% if (S.email) { %><a href="mailto:<%= S.email %>" data-track="email_click"><%= S.email %></a><% } else { %><%- ph('[ADD EMAIL in Admin → Settings]') %><% } %>
+      <% if (S.address) { %><p class="small"><%= S.address %></p><% } %>
+      <p class="small">Serving <%= S.serviceArea %></p>
+      <div class="social"><% [['linkedin','LinkedIn'],['facebook','Facebook'],['instagram','Instagram'],['youtube','YouTube']].forEach((s) => { if (S[s[0]]) { %><a href="<%= S[s[0]] %>" rel="noopener" target="_blank"><%= s[1] %></a><% } }) %></div>
+    </div>
+  </div>
+  <div class="wrap ftr-base"><span>© <%= new Date().getFullYear() %> <%= S.name %>. All rights reserved.</span><% if (S.legacyNote) { %><span><%= S.legacyNote %></span><% } %></div>
+</footer>
+<div class="sticky-cta"><a class="btn btn-primary" href="/contact" data-track="cta_request_assessment" data-loc="sticky">Request a Field Assessment</a><% if (S.phone) { %><a class="btn btn-outline call" href="tel:<%= tel %>" data-track="phone_click" aria-label="Call"><%- icon('phone') %></a><% } %></div>
+<script src="/js/site.js" defer></script>
+</body>
+</html>

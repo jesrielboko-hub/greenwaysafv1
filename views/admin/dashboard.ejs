@@ -1,0 +1,5 @@
+<%- include('_top') %>
+<h1>Dashboard</h1>
+<div class="stats"><% Object.keys(counts).forEach((k) => { %><a href="/admin/<%= k %>"><b><%= counts[k] %></b><%= schemas[k].label %></a><% }) %><a href="/admin/leads"><b><%= leads.filter((l) => l.status === 'new').length %></b>New leads</a></div>
+<div class="box" style="margin-top:18px"><b>Quick start</b><p>Add a project: <a href="/admin/projects/new">Projects → Add</a>. Add a testimonial: <a href="/admin/testimonials/new">Testimonials → Add</a>. Business phone, email, hero image and the “show placeholders” switch live in <a href="/admin/settings">Settings</a>.</p></div>
+</div></body></html>

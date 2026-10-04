@@ -1,0 +1,8 @@
+<%- include('_top') %>
+<h1>Field assessment requests</h1>
+<% leads.forEach((l) => { %><div class="box"><b><%= l.firstName %> <%= l.lastName %></b> · <%= l.organization %> · <a href="mailto:<%= l.email %>"><%= l.email %></a> · <%= l.phone %><br>
+<small><%= new Date(l.date).toLocaleString() %> · <%= l.location %> · <%= l.fieldType %> · <%= l.service %> · <%= l.timeline %> · source: <%= l.source %></small>
+<p style="white-space:pre-wrap"><%= l.description %></p>
+<div class="thumbs"><% (l.photos || []).forEach((u) => { %><a href="<%= u %>" target="_blank"><img class="thumb" src="<%= u %>" alt=""></a><% }) %></div>
+<form method="post" action="/admin/leads/<%= l.id %>" style="display:flex;gap:8px;margin-top:8px"><select name="status" style="width:auto"><% ['new','contacted','won','closed'].forEach((s) => { %><option <%= l.status === s ? 'selected' : '' %>><%= s %></option><% }) %></select><button class="btn sec">Update</button><button class="btn del" name="del" value="1" onclick="return confirm('Delete lead?')">Delete</button></form></div><% }) %>
+<% if (!leads.length) { %><p>No requests yet.</p><% } %></div></body></html>

@@ -1,0 +1,34 @@
+<% if (sent) { %>
+<section class="page-hd"><div class="wrap narrow"><h1>Thank you. Your request has been received.</h1>
+<p class="lead">Greenway will review the details and photos you sent and follow up with the right next step.</p>
+<div class="btns"><a class="btn btn-primary" href="/projects" data-track="thank_you_projects">View Our Projects</a><a class="btn btn-outline" href="/services">Explore Services</a></div></div></section>
+<script>window.dataLayer=window.dataLayer||[];window.dataLayer.push({event:'generate_lead',form:'field_assessment'});if(window.gtag)gtag('event','generate_lead',{form:'field_assessment'});</script>
+<% } else { %>
+<section class="page-hd"><div class="wrap"><h1>Request a Field Assessment</h1>
+<p class="lead">Tell us what you are seeing, or what you are planning. Photos help.</p></div></section>
+<section class="sec"><div class="wrap two contact">
+<form id="assessment" class="form" method="post" action="/contact" enctype="multipart/form-data" data-form="field_assessment">
+  <% if (err) { %><p class="err" role="alert"><%= err %></p><% } %>
+  <input type="hidden" name="source" value="<%= q.service ? 'service:' + q.service : q.project ? 'project:' + q.project : q.resource ? 'resource:' + q.resource : 'contact' %>">
+  <div class="row2"><label>First name *<input name="firstName" required autocomplete="given-name" value="<%= q.firstName || '' %>"></label><label>Last name<input name="lastName" autocomplete="family-name" value="<%= q.lastName || '' %>"></label></div>
+  <label>Organization<input name="organization" autocomplete="organization" value="<%= q.organization || '' %>"></label>
+  <div class="row2"><label>Email *<input type="email" name="email" required autocomplete="email" value="<%= q.email || '' %>"></label><label>Phone<input type="tel" name="phone" autocomplete="tel" value="<%= q.phone || '' %>"></label></div>
+  <label>Field location (town, state)<input name="location" value="<%= q.location || '' %>"></label>
+  <div class="row2">
+    <label>Field type<select name="fieldType"><option value="">Select</option><% ['Baseball','Softball','Soccer','Football','Multi-Sport','Other / not sure'].forEach((o) => { %><option <%= q.fieldType === o ? 'selected' : '' %>><%= o %></option><% }) %></select></label>
+    <label>What can we help with?<select name="service"><option value="">Not sure yet</option><% services.forEach((s) => { %><option value="<%= s.name %>" <%= (q.service === s.slug || q.service === s.name) ? 'selected' : '' %>><%= s.name %></option><% }) %></select></label>
+  </div>
+  <label>Project timeline<select name="timeline"><option value="">Select</option><% ['As soon as possible','This season','Next season','Planning ahead / budgeting'].forEach((o) => { %><option <%= q.timeline === o ? 'selected' : '' %>><%= o %></option><% }) %></select></label>
+  <label>Describe your field or project *<textarea name="description" rows="5" required><%= q.description || '' %></textarea></label>
+  <label>Upload photos (optional, up to 6)<input type="file" name="photos" accept="image/*" multiple></label>
+  <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+  <button class="btn btn-primary btn-lg" type="submit">Request a Field Assessment <%- icon('arrow') %></button>
+</form>
+<aside class="side">
+  <div class="card"><h3>What happens next</h3><ol class="steps"><li>You send the details and any photos.</li><li>Greenway reviews your field situation.</li><li>Greenway follows up with the right next step.</li></ol></div>
+  <div class="card"><h3>Who should contact us</h3><p>Municipalities, parks and recreation departments, schools, colleges and universities, and sports organizations responsible for an athletic field.</p></div>
+  <div class="card"><h3>Helpful to include</h3><p>Sport and field type, location, what you are seeing (standing water, wear, compaction), and any deadlines.</p></div>
+  <div class="card"><h3>Where we work</h3><p>Serving <%= S.serviceArea %>.</p>
+  <% if (S.phone) { %><a class="btn btn-outline" href="tel:<%= tel %>" data-track="phone_click"><%- icon('phone') %> <%= S.phone %></a><% } else { %><%- ph('[ADD PHONE in Admin → Settings]') %><% } %></div>
+</aside></div></section>
+<% } %>

@@ -1,84 +1,295 @@
-const express=require('express'),fs=require('fs'),path=require('path'),crypto=require('crypto');
-const app=express(),SITE=(process.env.SITE_URL||'https://www.greenwayafs.com').replace(/\/$/,'');
-const DIR=process.env.DATA_DIR||path.join(__dirname,'data'),FILE=path.join(DIR,'content.json');
-const PASS=process.env.ADMIN_PASSWORD,SECRET=process.env.SESSION_SECRET||crypto.randomBytes(32).toString('hex');
-fs.mkdirSync(DIR,{recursive:true});
-if(!fs.existsSync(FILE))fs.copyFileSync(path.join(__dirname,'seed.json'),FILE);
-const load=()=>JSON.parse(fs.readFileSync(FILE,'utf8')),save=d=>fs.writeFileSync(FILE,JSON.stringify(d,null,2));
-const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const paras=s=>String(s||'').split(/\n\s*\n/).filter(Boolean).map(p=>`<p>${e(p)}</p>`).join('');
-const lines=s=>String(s||'').split('\n').map(x=>x.trim()).filter(Boolean);
-const slug=s=>String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-const eq=(a,b)=>{const A=Buffer.from(a),B=Buffer.from(b);return A.length===B.length&&crypto.timingSafeEqual(A,B)};
-const sign=v=>crypto.createHmac('sha256',SECRET).update(v).digest('hex');
-const authed=r=>{const m=/(?:^|; )s=(\d+)\.([a-f0-9]+)/.exec(r.headers.cookie||'');return !!m&&+m[1]>Date.now()&&eq(sign(m[1]),m[2])};
-app.disable('x-powered-by');app.set('trust proxy',1);
-app.use(express.urlencoded({extended:false,limit:'2mb'}));
-app.use(express.static(path.join(__dirname,'public'),{maxAge:'1h'}));
+const express = require('express');
+const compression = require('compression');
+const multer = require('multer');
+const crypto = require('crypto');
+const path = require('path');
+const fs = require('fs');
+const ejs = require('ejs');
+const store = require('./lib/store');
+const schemas = require('./lib/schemas');
+const H = require('./lib/helpers');
+let sharp = null; try { sharp = require('sharp'); } catch (e) { /* optional: images saved as-is */ }
 
-/* ---------- public layout ---------- */
-const imgOr=(src,alt,cls)=>src?`<img class="${cls}" src="${e(src)}" alt="${e(alt)}" loading="lazy">`:`<div class="${cls} ph" role="img" aria-label="${e(alt)}"></div>`;
-const layout=(d,{title,desc,p='/',ld,body})=>{const s=d.site;return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(title)}</title><meta name="description" content="${e(desc)}"><link rel="canonical" href="${SITE}${p}"><meta property="og:site_name" content="${e(s.name)}"><meta property="og:title" content="${e(title)}"><meta property="og:description" content="${e(desc)}"><meta property="og:type" content="website"><meta property="og:url" content="${SITE}${p}"><meta name="twitter:card" content="summary_large_image"><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="/style.css">${ld?`<script type="application/ld+json">${JSON.stringify(ld).replace(/</g,'\\u003c')}</script>`:''}</head><body>
-<header class="top"><a class="brand" href="/">${e(s.name)}</a><nav><a href="/services">Services</a><a href="/projects">Projects</a><a href="/about">About</a><a href="/contact">Contact</a></nav><a class="btn sm" href="tel:${e(s.tel)}">Call ${e(s.phone)}</a></header>
-<main>${body}</main>
-<footer><div class="wrap cols"><div><strong>${e(s.name)}</strong><p>Athletic field construction &amp; maintenance serving ${e(s.areas)}.</p></div><div><a href="tel:${e(s.tel)}">${e(s.phone)}</a><br><a href="mailto:${e(s.email)}">${e(s.email)}</a></div><div>${s.social.map(u=>`<a href="${e(u)}" rel="noopener">${e(new URL(u).hostname.replace('www.','').split('.')[0])}</a>`).join('<br>')}</div></div><p class="copy">© ${new Date().getFullYear()} ${e(s.legalName)}</p></footer></body></html>`};
-const bizLD=d=>({'@context':'https://schema.org','@type':'LocalBusiness','@id':SITE+'/#org',name:d.site.name,legalName:d.site.legalName,alternateName:d.site.formerName,url:SITE,telephone:d.site.tel,email:d.site.email,areaServed:d.site.areas.split(',').map(x=>({'@type':'State',name:x.trim()})),sameAs:d.site.social,description:'Athletic field construction, renovation and turf maintenance.'});
-const projCard=p=>`<article class="card proj">${imgOr(p.image,p.title,'thumb')}<div class="pad"><p class="meta">${e(p.location)} · ${e(p.year)}</p><h3>${e(p.title)}</h3><ul>${lines(p.scope).slice(0,3).map(x=>`<li>${e(x)}</li>`).join('')}</ul></div></article>`;
-const cta=d=>`<section class="band"><div class="wrap"><h2>Planning a field project?</h2><p>Tell us about your fields and we'll follow up with next steps.</p><a class="btn" href="/contact">Request a quote</a> <a class="btn ghost" href="tel:${e(d.site.tel)}">Call ${e(d.site.phone)}</a></div></section>`;
+const app = express();
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
+app.use(compression());
+const PORT = process.env.PORT || 3000;
+const SECRET = process.env.SESSION_SECRET || crypto.randomBytes(24).toString('hex');
+const ADMIN_PW = process.env.ADMIN_PASSWORD || '';
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024, files: 30 } });
 
-/* ---------- public pages ---------- */
-app.get('/',(q,r)=>{const d=load(),s=d.site,feat=d.projects.filter(p=>p.featured==='yes').slice(0,6);
-r.send(layout(d,{title:`${s.name} | Athletic Field Construction & Maintenance in CT & NY`,desc:`${s.name} builds, renovates and maintains athletic fields for schools, towns and leagues across ${s.areas}. 135+ years of combined experience.`,ld:bizLD(d),body:`
-<section class="hero" style="background-image:linear-gradient(100deg,rgba(7,30,21,.93) 25%,rgba(7,30,21,.35)),url('${e(s.heroImage)}')"><div class="wrap"><span class="pill">Serving ${e(s.areas)}</span><h1>${e(s.heroTitle)}</h1><p>${e(s.heroSub)}</p><a class="btn" href="/contact">Get a free quote</a> <a class="btn ghost" href="/projects">View our work</a></div></section>
-<section class="stats wrap"><div class="statcard">${lines(s.stats).map(l=>{const[a,b]=l.split('|');return `<div><b>${e(a)}</b><span>${e(b)}</span></div>`}).join('')}</div></section>
-<section class="wrap"><p class="eyebrow">Services</p><h2>Everything your field needs, from subgrade to striping</h2><div class="grid">${d.services.map(v=>`<a class="card svc" href="/services/${e(v.slug)}">${imgOr(v.image,v.title,'thumb')}<div class="pad"><small>${e(v.group)}</small><h3>${e(v.title)}</h3><p>${e(v.summary)}</p><span>Learn more →</span></div></a>`).join('')}</div></section>
-<section class="split"><div class="wrap two">${imgOr(s.aboutImage,'Greenway crew at work','big')}<div><p class="eyebrow">Why Greenway</p><h2>Decades of experience. Fields built beneath the surface.</h2><ul class="ticks"><li>135+ years of combined experience</li><li>Engineered ballfield mix, laser grading, drainage and irrigation</li><li>Construction and year-round maintenance from one team</li><li>Trusted by schools, towns and little leagues</li></ul><a class="btn" href="/about">About Greenway</a></div></div></section>
-<section class="wrap"><p class="eyebrow">How it works</p><h2>A simple process</h2><div class="grid steps">${[['1','Consult','We walk your fields and listen to your goals and budget.'],['2','Plan','Clear scope, timeline and pricing, with grading and drainage designed in.'],['3','Build','Our crews deliver on schedule, with minimal disruption to your season.'],['4','Maintain','Ongoing mowing, aeration, lining and turf care to protect the investment.']].map(x=>`<div class="card pad"><b class="num">${x[0]}</b><h3>${x[1]}</h3><p>${x[2]}</p></div>`).join('')}</div></section>
-<section class="wrap"><p class="eyebrow">Before &amp; after</p><h2>See the difference</h2><div class="two ba">${imgOr(s.beforeImage,'Before photo','big')}${imgOr(s.afterImage,'After photo','big')}</div></section>
-<section class="band alt"><div class="wrap"><h2>Attention little leagues</h2><p>Full field construction, laser grading, irrigation, drainage, mounds, lip removal, clay and hydroseeding, built to fit league budgets.</p><a class="btn" href="/contact">Talk to us</a></div></section>
-<section class="wrap"><p class="eyebrow">Projects</p><h2>Recently completed</h2><div class="grid">${feat.map(projCard).join('')}</div><p><a href="/projects">View all projects →</a></p></section>
-<section class="wrap"><p class="eyebrow">Testimonials</p><h2>What clients say</h2><div class="grid">${(d.testimonials.length?d.testimonials:[{quote:'Client testimonial placeholder. Add real quotes in Admin > Testimonials.',name:'Athletic Director',role:'School District'}]).map(t=>`<blockquote class="card pad">“${e(t.quote)}”<footer>${e(t.name)}${t.role?`, ${e(t.role)}`:''}</footer></blockquote>`).join('')}</div></section>${cta(d)}`}))});
-app.get('/services',(q,r)=>{const d=load();r.send(layout(d,{title:`Athletic Field Services | ${d.site.name}`,desc:'Field construction, renovation, aeration, sod, irrigation, drainage and maintenance services.',p:'/services',body:`<section class="wrap"><h1>Our services</h1>${['Construction','Maintenance'].map(g=>`<h2>${g}</h2><div class="grid">${d.services.filter(v=>v.group===g).map(v=>`<a class="card pad svc" href="/services/${e(v.slug)}"><h3>${e(v.title)}</h3><p>${e(v.summary)}</p><span>Learn more →</span></a>`).join('')}</div>`).join('')}</section>${cta(d)}`}))});
-app.get('/services/:slug',(q,r,n)=>{const d=load(),v=d.services.find(x=>x.slug===q.params.slug);if(!v)return n();const rel=d.projects.filter(p=>p.service===v.slug);
-r.send(layout(d,{title:`${v.title} in CT & NY | ${d.site.name}`,desc:v.summary,p:'/services/'+v.slug,ld:{'@context':'https://schema.org','@type':'Service',name:v.title,description:v.summary,provider:{'@id':SITE+'/#org'},areaServed:d.site.areas},body:`<section class="wrap narrow"><p class="meta"><a href="/services">Services</a> / ${e(v.title)}</p><h1>${e(v.title)}</h1>${v.image?imgOr(v.image,v.title,'hero-img'):''}${paras(v.body)}<a class="btn" href="/contact?service=${e(v.slug)}">Request a quote</a></section>${rel.length?`<section class="wrap"><h2>Project examples</h2><div class="grid">${rel.map(projCard).join('')}</div></section>`:''}${cta(d)}`}))});
-app.get('/projects',(q,r)=>{const d=load();r.send(layout(d,{title:`Completed Athletic Field Projects | ${d.site.name}`,desc:'Recent field construction and renovation projects for schools, parks and towns in Connecticut and New York.',p:'/projects',body:`<section class="wrap"><h1>Completed projects</h1><div class="grid">${d.projects.map(projCard).join('')}</div></section>${cta(d)}`}))});
-app.get('/about',(q,r)=>{const d=load(),s=d.site;r.send(layout(d,{title:`About | ${s.name}`,desc:`${s.name} (formerly ${s.formerName}) brings 135+ years of combined experience to athletic field construction and maintenance.`,p:'/about',body:`<section class="wrap narrow"><h1>About ${e(s.name)}</h1><p>${e(s.name)}, formerly ${e(s.formerName)}, specializes in athletic field construction and maintenance for schools, municipalities and leagues in ${e(s.areas)}.</p><h2>Leadership</h2>${d.team.map(t=>`<div class="card pad"><h3>${e(t.name)}</h3><p class="meta">${e(t.title)}</p><p>${e(t.bio)}</p></div>`).join('')}</section>${cta(d)}`}))});
-app.get('/contact',(q,r)=>{const d=load(),s=d.site;r.send(layout(d,{title:`Contact & Free Quote | ${s.name}`,desc:`Call ${s.phone} or request a quote for athletic field construction or maintenance.`,p:'/contact',body:`<section class="wrap narrow"><h1>Request a quote</h1>${q.query.sent?'<p class="ok">Thanks! We will be in touch shortly.</p>':''}<form method="post" action="/contact" class="form"><input name="website" class="hp" tabindex="-1" autocomplete="off"><label>Name<input name="name" required></label><label>Email<input name="email" type="email" required></label><label>Phone<input name="phone"></label><label>Organization<input name="org"></label><label>Service<select name="service"><option value="">Not sure yet</option>${d.services.map(v=>`<option value="${e(v.title)}"${q.query.service===v.slug?' selected':''}>${e(v.title)}</option>`).join('')}</select></label><label>Message<textarea name="message" rows="5"></textarea></label><button class="btn">Send request</button></form><p>Or call <a href="tel:${e(s.tel)}">${e(s.phone)}</a></p></section>`}))});
-app.post('/contact',(q,r)=>{if(q.body.website)return r.redirect('/contact?sent=1');const d=load(),b=q.body;
-d.inquiries.unshift({id:crypto.randomUUID(),date:new Date().toISOString(),...Object.fromEntries(['name','email','phone','org','service','message'].map(k=>[k,String(b[k]||'').slice(0,2000)]))});d.inquiries=d.inquiries.slice(0,300);save(d);r.redirect('/contact?sent=1')});
-app.get('/robots.txt',(q,r)=>r.type('text').send(`User-agent: *\nAllow: /\nDisallow: /admin\nSitemap: ${SITE}/sitemap.xml\n`));
-app.get('/sitemap.xml',(q,r)=>{const d=load(),u=['/','/services','/projects','/about','/contact',...d.services.map(v=>'/services/'+v.slug)];r.type('xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${u.map(x=>`<url><loc>${SITE}${x}</loc></url>`).join('')}</urlset>`)});
+app.use('/uploads', express.static(store.UPLOADS, { maxAge: '30d', immutable: true }));
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '7d' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-/* ---------- admin ---------- */
-const COLS={
-projects:{label:'Projects',t:'title',f:[['title','Title'],['location','Location'],['year','Year'],['service','Service slug (links project to a service page)'],['featured','Show on home page? (yes/no)'],['image','Image URL or /img/file.jpg'],['scope','Scope (one item per line)','t']]},
-testimonials:{label:'Testimonials',t:'name',f:[['name','Name'],['role','Role / organization'],['quote','Quote','t']]},
-services:{label:'Services',t:'title',f:[['title','Title'],['slug','URL slug'],['group','Group (Construction or Maintenance)'],['summary','Short summary'],['image','Image URL'],['body','Page text (blank line between paragraphs)','t']]}};
-const SET=[['heroTitle','Home headline'],['heroSub','Home sub-headline','t'],['phone','Phone (display)'],['tel','Phone (link, e.g. +12035692942)'],['email','Email'],['heroImage','Home hero image URL'],['aboutImage','Home "why Greenway" image URL'],['beforeImage','Before photo URL'],['afterImage','After photo URL'],['areas','Service areas (comma separated)'],['stats','Stats (one per line: 300+|Label)','t']];
-const A=(b,t='Admin')=>`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${t}</title><link rel="stylesheet" href="/style.css"><body class="adm"><div class="wrap narrow">${b}</div>`;
-const field=([k,l,t],v)=>`<label>${e(l)}${t?`<textarea name="${k}" rows="6">${e(v)}</textarea>`:`<input name="${k}" value="${e(v)}">`}</label>`;
-const nav=`<p class="meta"><a href="/admin">Dashboard</a> · <a href="/" target="_blank">View site</a></p>`;
-const tries={};
-app.get('/admin',(q,r)=>{if(!PASS)return r.send(A('<h1>Admin disabled</h1><p>Set the ADMIN_PASSWORD environment variable.</p>'));
-if(!authed(q))return r.send(A('<h1>Admin login</h1><form method="post" action="/admin/login" class="form"><label>Password<input type="password" name="password" autofocus></label><button class="btn">Log in</button></form>'+(q.query.err?'<p class="err">Wrong password.</p>':'')));
-const d=load();r.send(A(`<h1>Dashboard</h1>${Object.entries(COLS).map(([k,c])=>`<p><a class="btn sm" href="/admin/${k}">${c.label} (${d[k].length})</a></p>`).join('')}<p><a class="btn sm" href="/admin/settings">Site settings</a></p><p><a class="btn sm" href="/admin/export">Export content</a> <a class="btn sm" href="/admin/import">Import content</a></p><p><a class="btn sm" href="/admin/inquiries">Quote requests (${d.inquiries.length})</a></p><form method="post" action="/admin/logout"><button class="btn ghost sm">Log out</button></form>`))});
-app.post('/admin/login',(q,r)=>{const ip=q.ip,t=tries[ip]=(tries[ip]||[]).filter(x=>x>Date.now()-9e5);
-if(!PASS||t.length>=8||!eq(String(q.body.password||''),PASS)){t.push(Date.now());return r.redirect('/admin?err=1')}
-const exp=Date.now()+7*864e5;r.setHeader('Set-Cookie',`s=${exp}.${sign(String(exp))}; HttpOnly; Secure; SameSite=Strict; Path=/admin; Max-Age=604800`);r.redirect('/admin')});
-app.post('/admin/logout',(q,r)=>{r.setHeader('Set-Cookie','s=; Path=/admin; Max-Age=0');r.redirect('/admin')});
-app.use('/admin',(q,r,n)=>authed(q)?n():r.redirect('/admin'));
-app.get('/admin/settings',(q,r)=>{const s=load().site;r.send(A(`${nav}<h1>Site settings</h1><form method="post" class="form">${SET.map(f=>field(f,s[f[0]])).join('')}<button class="btn">Save</button></form>`))});
-app.post('/admin/settings',(q,r)=>{const d=load();SET.forEach(([k])=>{if(q.body[k]!==undefined)d.site[k]=String(q.body[k]).trim()});save(d);r.redirect('/admin')});
-app.get('/admin/export',(q,r)=>{r.setHeader('Content-Disposition','attachment; filename="greenway-content.json"');r.type('json').send(fs.readFileSync(FILE))});
-app.get('/admin/import',(q,r)=>r.send(A(`${nav}<h1>Import content</h1><p>Paste the contents of an exported greenway-content.json. This replaces ALL current content.</p><form method="post" class="form"><textarea name="json" rows="14" required></textarea><button class="btn">Replace content</button></form>`)));
-app.post('/admin/import',(q,r)=>{try{const d=JSON.parse(q.body.json);if(!d.site||!['services','projects','testimonials','team','inquiries'].every(k=>Array.isArray(d[k])))throw 0;save(d);r.redirect('/admin')}catch{r.status(400).send(A(`${nav}<p class="err">Invalid content file.</p>`))}});
-app.get('/admin/inquiries',(q,r)=>{const d=load();r.send(A(`${nav}<h1>Quote requests</h1>${d.inquiries.map(i=>`<div class="card pad"><b>${e(i.name)}</b> · ${e(i.org)}<br><a href="mailto:${e(i.email)}">${e(i.email)}</a> ${e(i.phone)}<p class="meta">${e(i.date.slice(0,10))} · ${e(i.service)}</p><p>${e(i.message)}</p></div>`).join('')||'<p>None yet.</p>'}`))});
-app.get('/admin/:col',(q,r,n)=>{const c=COLS[q.params.col];if(!c)return n();const d=load(),it=d[q.params.col].find(x=>x.id===q.query.edit)||{};
-r.send(A(`${nav}<h1>${c.label}</h1><form method="post" action="/admin/${q.params.col}/save" class="form"><h2>${it.id?'Edit':'Add new'}</h2><input type="hidden" name="id" value="${e(it.id||'')}">${c.f.map(f=>field(f,it[f[0]])).join('')}<button class="btn">Save</button></form><h2>Existing</h2>${d[q.params.col].map(x=>`<div class="card pad row"><span>${e(x[c.t])}</span><span><a href="/admin/${q.params.col}?edit=${e(x.id)}">Edit</a> <form method="post" action="/admin/${q.params.col}/delete" style="display:inline" onsubmit="return confirm('Delete?')"><input type="hidden" name="id" value="${e(x.id)}"><button class="lnk">Delete</button></form></span></div>`).join('')}`))});
-app.post('/admin/:col/save',(q,r,n)=>{const c=COLS[q.params.col];if(!c)return n();const d=load(),list=d[q.params.col],o={};
-c.f.forEach(([k])=>o[k]=String(q.body[k]||'').trim().slice(0,10000));if(o.slug!==undefined)o.slug=slug(o.slug||o.title);
-const i=list.findIndex(x=>x.id===q.body.id);if(i>=0)list[i]={...list[i],...o};else list.push({id:crypto.randomUUID(),...o});save(d);r.redirect('/admin/'+q.params.col)});
-app.post('/admin/:col/delete',(q,r,n)=>{if(!COLS[q.params.col])return n();const d=load();d[q.params.col]=d[q.params.col].filter(x=>x.id!==q.body.id);save(d);r.redirect('/admin/'+q.params.col)});
+// ---------- redirects (data/redirects.json: {"/old-path": "/new-path"}) ----------
+app.use((req, res, next) => {
+  const t = store.redirects()[req.path.replace(/\/+$/, '') || '/'];
+  if (t) return res.redirect(301, t);
+  if (req.path.length > 1 && req.path.endsWith('/') && !req.path.startsWith('/admin')) return res.redirect(301, req.path.slice(0, -1) + (req.url.slice(req.path.length) || ''));
+  next();
+});
 
-app.use((q,r)=>r.status(404).send(layout(load(),{title:'Page not found',desc:'Page not found',body:'<section class="wrap"><h1>Page not found</h1><a href="/">Back home</a></section>'})));
-app.listen(process.env.PORT||3000,()=>console.log('Greenway site running'));
+// ---------- shared template locals ----------
+const CAT_LABEL = { build: 'Build', renovate: 'Renovate', fix: 'Fix', maintain: 'Maintain', specialty: 'Specialty' };
+const CAT_BLURB = {
+  build: ['New Athletic Field Construction', 'construction'],
+  renovate: ['Field Renovation & Improvements', 'renovation'],
+  fix: ['Drainage, Irrigation, Grading & Field Repairs', 'drainage'],
+  maintain: ['Athletic Field Maintenance & Turf Management', 'maintenance'],
+  specialty: ['Infield Work, Deep-Tine Aeration, Laser Grading & More', 'aeration'],
+};
+app.use((req, res, next) => {
+  const S = store.settings();
+  const L = res.locals;
+  Object.assign(L, { S, H, icon: H.icon, esc: H.esc, paras: H.paras, isPh: H.isPh, CAT_LABEL, CAT_BLURB, path: req.path, schemas });
+  L.base = (S.siteUrl || '').replace(/\/$/, '');
+  L.industriesNav = store.pub('industries').sort((a, b) => (a.order || 0) - (b.order || 0));
+  L.ph = (t) => (S.showPlaceholders ? `<p class="ph-note">${H.esc(t)}</p>` : '');
+  L.tel = (S.phone || '').replace(/[^\d+]/g, '');
+  L.pic = (src, alt, label, cls = '', eager) => {
+    if (src) return `<img class="${cls}" src="${H.esc(src)}" alt="${H.esc(alt)}" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">`;
+    return `<div class="ph-img ${cls}" role="img" aria-label="${H.esc(alt)}">${S.showPlaceholders ? `<span>ADD PHOTO<br><b>${H.esc(label || alt)}</b></span>` : ''}</div>`;
+  };
+  L.projLoc = (p) => [p.city, p.state].filter(Boolean).join(', ');
+  L.testimonialsFor = (fn) => store.pub('testimonials').filter(fn);
+  res.page = (view, meta, data = {}) => {
+    ejs.renderFile(path.join(__dirname, 'views', view + '.ejs'), { ...L, ...data, meta }, (err, body) => {
+      if (err) return next(err);
+      const full = meta.rawTitle ? meta.title : (meta.title ? meta.title + ' | ' + S.name : S.name);
+      res.status(meta.status || 200).render('layout', { ...L, ...data, body, meta: { ...meta, full, canonical: L.base + (meta.canonical || req.path) } });
+    });
+  };
+  next();
+});
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+const sortBy = (a, k) => a.slice().sort((x, y) => (x[k] || 0) - (y[k] || 0));
+const services = () => sortBy(store.pub('services'), 'order');
+const projects = () => store.pub('projects').sort((a, b) => (b.year || 0) - (a.year || 0));
+const crumbs = (...c) => [['Home', '/'], ...c];
+
+// ---------- public pages ----------
+app.get('/', (req, res) => {
+  const P = projects();
+  const feat = P.filter((p) => p.featured).slice(0, 6);
+  res.page('home', {
+    title: 'Athletic Field Construction, Renovation & Maintenance', rawTitle: false,
+    description: `${res.locals.S.name} constructs, renovates and maintains athletic fields for municipalities, schools, universities and sports organizations.`,
+  }, { services: services(), projects: feat.length ? feat : P.slice(0, 6), resource: store.pub('resources').find((r) => r.featured) });
+});
+
+app.get('/services', (req, res) => res.page('services', {
+  title: 'Athletic Field Services', description: 'Athletic field construction, renovation, drainage, irrigation, grading and maintenance services from Greenway Athletic Field Services.',
+  crumbs: crumbs(['Services', '/services']),
+}, { services: services() }));
+
+app.get('/services/:slug', (req, res, next) => {
+  const sv = store.find('services', req.params.slug);
+  if (!sv || sv.published === false) return next();
+  const all = services();
+  res.page('service', {
+    title: sv.seoTitle || sv.name, rawTitle: !!sv.seoTitle, description: sv.seoDescription || sv.short,
+    crumbs: crumbs(['Services', '/services'], [sv.name, '/services/' + sv.slug]), ogImage: sv.heroImage,
+  }, {
+    sv, related: (sv.relatedServices || []).map((s) => all.find((x) => x.slug === s)).filter(Boolean),
+    projs: projects().filter((p) => (p.services || []).includes(sv.slug)),
+    tests: store.pub('testimonials').filter((t) => (t.services || []).includes(sv.slug)),
+    faqs: H.faqs(sv.faqs),
+  });
+});
+
+app.get('/projects', (req, res) => {
+  const q = req.query, P = projects();
+  const f = P.filter((p) => (!q.sport || (p.sports || []).includes(q.sport)) && (!q.type || p.projectType === q.type) &&
+    (!q.state || p.state === q.state) && (!q.service || (p.services || []).includes(q.service)) && (!q.year || String(p.year) === q.year));
+  const uniq = (fn) => [...new Set(P.map(fn).flat().filter(Boolean))].sort();
+  res.page('projects', {
+    title: 'Athletic Field Projects', description: 'Completed athletic field construction, renovation and maintenance projects by Greenway Athletic Field Services.',
+    crumbs: crumbs(['Projects', '/projects']), canonical: '/projects',
+  }, { list: f, q, opts: { sport: uniq((p) => p.sports), type: uniq((p) => p.projectType), state: uniq((p) => p.state), year: uniq((p) => p.year).reverse() }, services: services() });
+});
+
+app.get('/projects/:slug', (req, res, next) => {
+  const pr = store.find('projects', req.params.slug);
+  if (!pr || pr.published === false) return next();
+  const all = services();
+  const rel = projects().filter((x) => x.slug !== pr.slug && ((x.services || []).some((s) => (pr.services || []).includes(s)) || x.state === pr.state)).slice(0, 3);
+  res.page('project', {
+    title: pr.seoTitle || `${pr.name} – ${res.locals.projLoc(pr)}`, rawTitle: !!pr.seoTitle,
+    description: pr.seoDescription || pr.overview || `${pr.name} in ${res.locals.projLoc(pr)}, an athletic field project by ${res.locals.S.name}.`,
+    crumbs: crumbs(['Projects', '/projects'], [pr.name, '/projects/' + pr.slug]), ogImage: pr.heroImage,
+  }, {
+    pr, used: (pr.services || []).map((s) => all.find((x) => x.slug === s)).filter(Boolean), rel,
+    client: store.find('industries', pr.clientType),
+    tests: store.pub('testimonials').filter((t) => t.project === pr.slug),
+  });
+});
+
+app.get('/industries', (req, res) => res.page('industries', {
+  title: 'Who We Serve', description: 'Greenway Athletic Field Services works with municipalities, parks and recreation departments, schools, colleges and universities, and sports organizations.',
+  crumbs: crumbs(['Who We Serve', '/industries']),
+}));
+app.get('/industries/:slug', (req, res, next) => {
+  const ind = store.find('industries', req.params.slug);
+  if (!ind || ind.published === false) return next();
+  const all = services();
+  res.page('industry', {
+    title: ind.seoTitle || `Athletic Field Services for ${ind.name}`, rawTitle: !!ind.seoTitle,
+    description: ind.seoDescription || `Athletic field construction, renovation and maintenance for ${ind.name.toLowerCase()} from ${res.locals.S.name}.`,
+    crumbs: crumbs(['Who We Serve', '/industries'], [ind.name, '/industries/' + ind.slug]), ogImage: ind.heroImage,
+  }, {
+    ind, svcs: (ind.services || []).map((s) => all.find((x) => x.slug === s)).filter(Boolean),
+    projs: projects().filter((p) => p.clientType === ind.slug),
+    tests: store.pub('testimonials').filter((t) => (t.industries || []).includes(ind.slug)),
+  });
+});
+
+app.get('/about', (req, res) => res.page('about', {
+  title: 'About – Decades of Athletic Field Experience', description: 'Greenway Athletic Field Services brings decades of landscape and athletic field construction, renovation and maintenance experience to every project.',
+  crumbs: crumbs(['About', '/about']),
+}, { team: sortBy(store.pub('team'), 'order') }));
+
+app.get('/resources', (req, res) => res.page('resources', {
+  title: 'Athletic Field Resources', description: 'Guides, articles and videos on athletic field construction, renovation and maintenance from Greenway Athletic Field Services.',
+  crumbs: crumbs(['Resources', '/resources']),
+}, { list: store.pub('resources') }));
+app.get('/resources/:slug', (req, res, next) => {
+  const r = store.find('resources', req.params.slug);
+  if (!r || r.published === false) return next();
+  res.page('resource', {
+    title: r.seoTitle || r.title, rawTitle: !!r.seoTitle, description: r.seoDescription || r.summary,
+    crumbs: crumbs(['Resources', '/resources'], [r.title, '/resources/' + r.slug]), ogImage: r.image,
+  }, { r });
+});
+
+// ---------- contact / lead capture ----------
+const hits = {};
+app.get('/contact', (req, res) => res.page('contact', {
+  title: 'Request a Field Assessment', description: 'Tell Greenway Athletic Field Services about your field. Share photos and details to request a field assessment or project consultation.',
+  crumbs: crumbs(['Contact', '/contact']), canonical: '/contact',
+}, { services: services(), q: req.query, sent: false, err: '' }));
+
+app.post('/contact', upload.array('photos', 6), async (req, res) => {
+  const b = req.body, ip = req.ip, now = Date.now();
+  hits[ip] = (hits[ip] || []).filter((t) => now - t < 3600e3); hits[ip].push(now);
+  const render = (err) => res.page('contact', { title: 'Request a Field Assessment', description: '', crumbs: crumbs(['Contact', '/contact']), canonical: '/contact', noindex: true },
+    { services: services(), q: b, sent: false, err });
+  if (b.website) return res.redirect('/contact/thank-you'); // honeypot
+  if (hits[ip].length > 8) return render('Too many submissions. Please call or try again later.');
+  if (!b.firstName || !b.email || !b.description) return render('Please add your name, email and a short description of your field.');
+  const photos = [];
+  for (const f of req.files || []) if (/^image\//.test(f.mimetype)) photos.push(await saveUpload(f));
+  const lead = {
+    id: crypto.randomUUID(), date: new Date().toISOString(), status: 'new', photos,
+    ...Object.fromEntries(['firstName', 'lastName', 'organization', 'email', 'phone', 'location', 'fieldType', 'service', 'timeline', 'description', 'source'].map((k) => [k, String(b[k] || '').slice(0, 4000)])),
+  };
+  store.addLead(lead);
+  const hook = store.settings().leadWebhook;
+  if (hook) fetch(hook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: `New field assessment request from ${lead.firstName} ${lead.lastName} (${lead.organization}) – ${lead.email} ${lead.phone}`, lead }) }).catch(() => {});
+  res.redirect('/contact/thank-you');
+});
+app.get('/contact/thank-you', (req, res) => res.page('contact', { title: 'Request Received', description: '', noindex: true, canonical: '/contact/thank-you' }, { services: [], q: {}, sent: true, err: '' }));
+
+// ---------- SEO files ----------
+app.get('/robots.txt', (req, res) => res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /contact/thank-you\n\nSitemap: ${res.locals.base}/sitemap.xml\n`));
+app.get('/sitemap.xml', (req, res) => {
+  const b = res.locals.base;
+  const u = ['/', '/services', '/projects', '/industries', '/about', '/resources', '/contact',
+    ...store.pub('services').map((x) => '/services/' + x.slug), ...store.pub('projects').map((x) => '/projects/' + x.slug),
+    ...store.pub('industries').map((x) => '/industries/' + x.slug), ...store.pub('resources').map((x) => '/resources/' + x.slug)];
+  res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${u.map((x) => `<url><loc>${b}${x}</loc></url>`).join('\n')}\n</urlset>`);
+});
+
+// ---------- admin ----------
+const sign = (exp) => exp + '.' + crypto.createHmac('sha256', SECRET).update(String(exp)).digest('hex');
+const valid = (tok) => { const [e, h] = String(tok || '').split('.'); return e && +e > Date.now() && tok === sign(e); };
+const cookie = (req, n) => (req.headers.cookie || '').split(/;\s*/).map((c) => c.split('=')).find((c) => c[0] === n)?.[1];
+const loginHits = {};
+async function saveUpload(f) {
+  const id = Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
+  const ext = path.extname(f.originalname).toLowerCase();
+  if (sharp && /^image\/(jpe?g|png|webp|tiff|heic)$/.test(f.mimetype)) {
+    const name = id + '.webp';
+    await sharp(f.buffer).rotate().resize({ width: 2200, withoutEnlargement: true }).webp({ quality: 80 }).toFile(path.join(store.UPLOADS, name));
+    return '/uploads/' + name;
+  }
+  const name = id + (['.pdf', '.svg', '.jpg', '.jpeg', '.png', '.webp', '.gif', '.mp4'].includes(ext) ? ext : '.bin');
+  fs.writeFileSync(path.join(store.UPLOADS, name), f.buffer);
+  return '/uploads/' + name;
+}
+const adm = express.Router();
+adm.use((req, res, next) => { res.locals.admin = true; res.set('X-Robots-Tag', 'noindex'); next(); });
+const A = (res, view, data = {}) => res.render('admin/' + view, { ...res.locals, ...data, view });
+adm.get('/login', (req, res) => A(res, 'login', { err: '', disabled: !ADMIN_PW }));
+adm.post('/login', (req, res) => {
+  const ip = req.ip; loginHits[ip] = (loginHits[ip] || []).filter((t) => Date.now() - t < 900e3);
+  if (!ADMIN_PW || loginHits[ip].length >= 8) return A(res, 'login', { err: 'Login unavailable.', disabled: !ADMIN_PW });
+  const ok = req.body.password && crypto.timingSafeEqual(crypto.createHash('sha256').update(req.body.password).digest(), crypto.createHash('sha256').update(ADMIN_PW).digest());
+  if (!ok) { loginHits[ip].push(Date.now()); return A(res, 'login', { err: 'Incorrect password.', disabled: false }); }
+  res.setHeader('Set-Cookie', `gw_admin=${sign(Date.now() + 12 * 3600e3)}; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=43200${req.secure ? '; Secure' : ''}`);
+  res.redirect('/admin');
+});
+adm.use((req, res, next) => (valid(cookie(req, 'gw_admin')) ? next() : res.redirect('/admin/login')));
+adm.get('/logout', (req, res) => { res.setHeader('Set-Cookie', 'gw_admin=; Path=/admin; Max-Age=0'); res.redirect('/admin/login'); });
+adm.get('/', (req, res) => A(res, 'dashboard', { counts: Object.fromEntries(Object.keys(schemas).filter((k) => schemas[k].fields).map((k) => [k, store.all(k).length])), leads: store.leads() }));
+
+adm.get('/settings', (req, res) => A(res, 'settings', { saved: req.query.saved }));
+adm.post('/settings', upload.any(), async (req, res) => {
+  const cur = store.settings(), b = req.body, next = { ...cur };
+  for (const k of ['name', 'shortName', 'tagline', 'phone', 'email', 'address', 'serviceArea', 'siteUrl', 'heroHeadline', 'heroSub', 'heroImage', 'heroVideo', 'ogImage', 'stats', 'linkedin', 'facebook', 'instagram', 'youtube', 'gaId', 'leadWebhook', 'legacyNote']) next[k] = (b[k] ?? '').trim();
+  next.showPlaceholders = b.showPlaceholders === 'on';
+  for (const f of req.files || []) next[f.fieldname] = await saveUpload(f);
+  store.saveSettings(next); res.redirect('/admin/settings?saved=1');
+});
+
+adm.get('/leads', (req, res) => A(res, 'leads', { leads: store.leads() }));
+adm.post('/leads/:id', (req, res) => {
+  const all = store.leads();
+  if (req.body.del) store.saveLeads(all.filter((l) => l.id !== req.params.id));
+  else { const l = all.find((x) => x.id === req.params.id); if (l) l.status = req.body.status; store.saveLeads(all); }
+  res.redirect('/admin/leads');
+});
+
+function build(sch, body, files, old = {}) {
+  const rec = { ...old };
+  const up = {};
+  for (const f of files || []) (up[f.fieldname] = up[f.fieldname] || []).push(f);
+  return Promise.all(sch.fields.map(async (f) => {
+    const v = body[f.k];
+    if (f.type === 'checkbox') rec[f.k] = v === 'on';
+    else if (f.type === 'number') rec[f.k] = v === '' || v == null ? '' : Number(v);
+    else if (f.type === 'list') rec[f.k] = String(v || '').split('\n').map((x) => x.trim()).filter(Boolean);
+    else if (f.type === 'multi' || f.type === 'select-multi') rec[f.k] = [].concat(v || []);
+    else if (f.type === 'image' || f.type === 'file') rec[f.k] = up[f.k] ? await saveUpload(up[f.k][0]) : String(v || '').trim();
+    else if (f.type === 'images') {
+      const keep = String(v || '').split('\n').map((x) => x.trim()).filter(Boolean);
+      for (const u of up[f.k] || []) keep.push(await saveUpload(u));
+      rec[f.k] = keep;
+    } else rec[f.k] = String(v ?? '').trim();
+  })).then(() => rec);
+}
+const refs = (sch) => Object.fromEntries(sch.fields.filter((f) => f.of).map((f) => [f.of, store.all(f.of)]));
+adm.get('/:c', (req, res, next) => { const sch = schemas[req.params.c]; if (!sch) return next(); A(res, 'list', { c: req.params.c, sch, items: store.all(req.params.c) }); });
+adm.get('/:c/new', (req, res, next) => { const sch = schemas[req.params.c]; if (!sch) return next(); A(res, 'form', { c: req.params.c, sch, item: { published: true }, refs: refs(sch), isNew: true, err: '' }); });
+adm.get('/:c/:slug', (req, res, next) => {
+  const sch = schemas[req.params.c]; const item = sch && store.find(req.params.c, req.params.slug); if (!item) return next();
+  A(res, 'form', { c: req.params.c, sch, item, refs: refs(sch), isNew: false, err: '' });
+});
+adm.post('/:c/:slug', upload.any(), async (req, res, next) => {
+  const c = req.params.c, sch = schemas[c]; if (!sch) return next();
+  const isNew = req.params.slug === 'new', old = isNew ? {} : store.find(c, req.params.slug);
+  if (!isNew && !old) return next();
+  if (req.body._delete) { store.remove(c, req.params.slug); return res.redirect('/admin/' + c); }
+  const rec = await build(sch, req.body, req.files, old);
+  const saved = store.upsert(c, rec, isNew ? null : req.params.slug);
+  res.redirect(`/admin/${c}/${saved.slug}?saved=1`);
+});
+app.use('/admin', adm);
+
+// ---------- 404 / errors ----------
+app.use((req, res) => res.page('404', { title: 'Page Not Found', description: '', status: 404, noindex: true, canonical: req.path }, { services: services().slice(0, 6) }));
+app.use((err, req, res, next) => { console.error(err); res.status(500).type('text').send('Something went wrong.'); });
+app.listen(PORT, () => console.log(`Greenway AFS running on :${PORT}${ADMIN_PW ? '' : '  (ADMIN_PASSWORD not set: admin disabled)'}`));

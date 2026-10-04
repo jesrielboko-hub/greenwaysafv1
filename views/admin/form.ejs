@@ -1,0 +1,27 @@
+<%- include('_top') %>
+<h1><%= isNew ? 'Add ' + sch.singular : 'Edit ' + (item[sch.title] || sch.singular) %></h1>
+<form method="post" action="/admin/<%= c %>/<%= isNew ? 'new' : item.slug %>" enctype="multipart/form-data" class="box">
+<% sch.fields.forEach((f) => { const v = item[f.k]; %>
+  <% if (f.type === 'checkbox') { %><label class="chk"><input type="checkbox" name="<%= f.k %>" <%= (v === true || (isNew && f.k === 'published')) ? 'checked' : '' %>> <%= f.label %></label>
+  <% } else { %><label><%= f.label %><%= f.req ? ' *' : '' %></label>
+    <% if (f.type === 'text') { %><input type="text" name="<%= f.k %>" value="<%= v || '' %>" <%= f.req ? 'required' : '' %>>
+    <% } else if (f.type === 'number') { %><input type="number" name="<%= f.k %>" value="<%= v ?? '' %>">
+    <% } else if (f.type === 'textarea') { %><textarea name="<%= f.k %>"><%= v || '' %></textarea>
+    <% } else if (f.type === 'list') { %><textarea name="<%= f.k %>"><%= (v || []).join('\n') %></textarea>
+    <% } else if (f.type === 'select') { const opts = f.options ? f.options.map((o) => [o, o]) : (refs[f.of] || []).map((o) => [o.slug, o[schemas[f.of].title]]); %>
+      <select name="<%= f.k %>"><option value="">—</option><% opts.forEach((o) => { %><option value="<%= o[0] %>" <%= v === o[0] ? 'selected' : '' %>><%= o[1] %></option><% }) %></select>
+    <% } else if (f.type === 'multi' || f.type === 'select-multi') { const opts = f.options ? f.options.map((o) => [o, o]) : (refs[f.of] || []).map((o) => [o.slug, o[schemas[f.of].title]]); %>
+      <div class="multi"><% opts.forEach((o) => { %><label><input type="checkbox" name="<%= f.k %>" value="<%= o[0] %>" <%= (v || []).includes(o[0]) ? 'checked' : '' %>> <%= o[1] %></label><% }) %></div>
+    <% } else if (f.type === 'image' || f.type === 'file') { %>
+      <% if (v && f.type === 'image') { %><img class="thumb" src="<%= v %>" alt=""><% } %>
+      <input type="text" name="<%= f.k %>" value="<%= v || '' %>" placeholder="/uploads/… (or upload below)"><input type="file" name="<%= f.k %>" <%= f.type === 'image' ? 'accept=image/*' : 'accept=application/pdf' %>>
+    <% } else if (f.type === 'images') { %>
+      <div class="thumbs"><% (v || []).forEach((u) => { %><img class="thumb" src="<%= u %>" alt=""><% }) %></div>
+      <textarea name="<%= f.k %>" placeholder="One path per line. Delete a line to remove a photo."><%= (v || []).join('\n') %></textarea><input type="file" name="<%= f.k %>" accept="image/*" multiple>
+    <% } %>
+  <% } %>
+<% }) %>
+<div class="sticky"><button class="btn">Save</button>
+<% if (!isNew) { %><a class="btn sec" href="/<%= ({services:'services',projects:'projects',industries:'industries',resources:'resources'})[c] ? c + '/' + item.slug : '' %>" target="_blank">View on site ↗</a>
+<button class="btn del" name="_delete" value="1" onclick="return confirm('Delete this permanently?')">Delete</button><% } %></div>
+</form></div></body></html>

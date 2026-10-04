@@ -1,0 +1,60 @@
+<section class="hero dark">
+  <% if (S.heroVideo) { %><video class="hero-media" autoplay muted loop playsinline poster="<%= S.heroImage %>" src="<%= S.heroVideo %>"></video>
+  <% } else if (S.heroImage) { %><img class="hero-media" src="<%= S.heroImage %>" alt="<%= S.name %> athletic field" fetchpriority="high">
+  <% } else { %><div class="hero-media turf"></div><% } %>
+  <div class="hero-shade"></div>
+  <div class="wrap hero-in">
+    <p class="eyebrow">Athletic Field Construction · Renovation · Maintenance</p>
+    <h1><%= S.heroHeadline %></h1>
+    <p class="lead"><%= S.heroSub %></p>
+    <div class="btns"><a class="btn btn-primary btn-lg" href="/contact" data-track="cta_request_assessment" data-loc="hero">Request a Field Assessment <%- icon('arrow') %></a>
+    <a class="btn btn-ghost btn-lg" href="/projects">View Our Projects <%- icon('arrow') %></a></div>
+    <p class="area"><%- icon('pin') %> Serving <%= S.serviceArea %></p>
+    <% if (!S.heroImage && S.showPlaceholders) { %><p class="ph-note ph-light">[ADD HERO PHOTO or VIDEO: wide shot of a completed Greenway field. Admin → Settings]</p><% } %>
+  </div>
+</section>
+
+<section class="proof"><div class="wrap proof-in">
+<% S.stats.split('\n').filter(Boolean).forEach((l) => { const [n, a, b] = l.split('|'); %>
+  <div class="stat"><b><%= n %></b><span><%= a %><br><%= b %></span></div>
+<% }) %></div></section>
+
+<section class="sec"><div class="wrap">
+  <p class="eyebrow dk">What can we help with?</p>
+  <h2>Start with what your field needs.</h2>
+  <div class="grid g5 cats">
+  <% Object.keys(CAT_LABEL).forEach((k) => { const n = services.filter((s) => s.category === k).length; %>
+    <a class="card cat" href="/services#<%= k %>"><span class="cat-ic"><%- icon(CAT_BLURB[k][1]) %></span><h3><%= CAT_LABEL[k] %></h3><p><%= CAT_BLURB[k][0] %></p><span class="more"><%= n %> service<%= n === 1 ? '' : 's' %> <%- icon('arrow') %></span></a>
+  <% }) %></div>
+</div></section>
+
+<section class="sec sand"><div class="wrap">
+  <p class="eyebrow dk">Common field problems</p>
+  <h2>Seeing one of these? Start here.</h2>
+  <div class="grid g4">
+  <% [['Standing water after rain','drainage-installation','drainage'],['Hard, compacted turf','deep-tine-aeration','aeration'],['Uneven or poorly graded surface','laser-grading','grading'],['Worn, lipped or uneven infield','infield-renovation','infield']].forEach((x) => { if (services.some((s) => s.slug === x[1])) { %>
+    <a class="card prob" href="/services/<%= x[1] %>"><%- icon(x[2]) %><h3><%= x[0] %></h3><span class="more">See the fix <%- icon('arrow') %></span></a>
+  <% } }) %></div>
+</div></section>
+
+<section class="sec"><div class="wrap">
+  <div class="sec-head"><div><p class="eyebrow dk">Proof</p><h2>Completed athletic field projects</h2></div><a class="btn btn-outline" href="/projects">View Our Projects <%- icon('arrow') %></a></div>
+  <div class="grid g3"><% projects.forEach((p) => { %><%- include('partials/projectcard', { p }) %><% }) %></div>
+</div></section>
+
+<section class="sec dark-sec"><div class="wrap">
+  <p class="eyebrow">Who we serve</p><h2>Built for the people who run the fields.</h2>
+  <div class="grid g3 ind"><% industriesNav.forEach((i) => { %><a class="card ind-c" href="/industries/<%= i.slug %>"><%- icon(i.icon) %><div><h3><%= i.name %></h3><p><%= i.short %></p></div></a><% }) %></div>
+</div></section>
+
+<%- include('partials/testimonials', { tests: testimonialsFor((t) => t.featured), tphLabel: '[ADD TESTIMONIALS: tick “Show on homepage” in Admin → Testimonials]' }) %>
+
+<% if (resource) { %>
+<section class="sec sand"><div class="wrap guide">
+  <div><p class="eyebrow dk">Resource</p><h2><%= resource.title %></h2><p><%= resource.summary %></p>
+  <a class="btn btn-primary" href="/resources/<%= resource.slug %>" data-track="guide_view">Get the <%= resource.title %> Guide <%- icon('arrow') %></a></div>
+  <%- pic(resource.image, resource.title + ' guide cover', 'Built Beneath the Surface cover image', 'guide-img') %>
+</div></section>
+<% } %>
+
+<%- include('partials/cta') %>

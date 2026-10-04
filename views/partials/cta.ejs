@@ -1,0 +1,6 @@
+<section class="cta-band"><div class="wrap cta-in">
+  <div><h2><%= typeof ctaTitle !== 'undefined' ? ctaTitle : "Not Sure What Your Field Needs?" %></h2>
+  <p><%= typeof ctaText !== 'undefined' ? ctaText : "Tell us what you're seeing. We'll help identify the right next step." %></p></div>
+  <div class="cta-btns"><a class="btn btn-light" href="/contact<%= typeof ctaQuery !== 'undefined' ? ctaQuery : '' %>" data-track="cta_request_assessment" data-loc="band"><%= typeof ctaButton !== 'undefined' ? ctaButton : 'Request a Field Assessment' %> <%- icon('arrow') %></a>
+  <a class="btn btn-ghost" href="/projects">View Our Projects</a></div>
+</div></section>

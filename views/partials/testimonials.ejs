@@ -1,0 +1,9 @@
+<% if (tests && tests.length) { %>
+<section class="sec"><div class="wrap"><h2>What Clients Say</h2>
+<div class="grid g2"><% tests.slice(0, 4).forEach((t) => { %>
+<figure class="quote"><blockquote><p>“<%= t.quote %>”</p></blockquote>
+<figcaption><b><%= t.name %></b><% if (t.role) { %>, <%= t.role %><% } %><% if (t.organization) { %><br><%= t.organization %><% } %></figcaption></figure>
+<% }) %></div></div></section>
+<% } else if (S.showPlaceholders) { %>
+<section class="sec"><div class="wrap"><h2>What Clients Say</h2><%- ph(typeof tphLabel !== 'undefined' ? tphLabel : '[ADD TESTIMONIAL: Admin → Testimonials. Real quotes only.]') %></div></section>
+<% } %>

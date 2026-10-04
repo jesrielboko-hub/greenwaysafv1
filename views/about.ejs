@@ -1,0 +1,11 @@
+<section class="page-hd"><div class="wrap"><h1>Decades of Field Experience</h1>
+<p class="lead">Greenway's expertise comes from decades of experience in landscape and athletic field construction, renovation and maintenance.</p></div></section>
+<section class="proof proof-lt"><div class="wrap proof-in"><% S.stats.split('\n').filter(Boolean).forEach((l) => { const [n, a, b] = l.split('|'); %><div class="stat"><b><%= n %></b><span><%= a %><br><%= b %></span></div><% }) %></div></section>
+<section class="sec"><div class="wrap narrow prose"><h2>Why Greenway Specializes in Athletic Fields</h2>
+<p><%= S.name %> builds, renovates and maintains athletic fields for municipalities, schools, universities and sports organizations. Athletic fields are our specialty, not one line item on a long landscaping menu.</p>
+<%- ph('[ADD: Greenway story, approach and commitment, in the company\'s own words]') %>
+<% if (S.legacyNote) { %><p><%= S.legacyNote %></p><% } %></div></section>
+<section class="sec sand"><div class="wrap"><h2>Leadership</h2><div class="grid g2 team">
+<% team.forEach((m) => { %><article class="card tm"><%- pic(m.photo, m.name + ', ' + m.title + ' of ' + S.name, m.name + ' professional portrait', 'tm-img') %><div><h3><%= m.name %></h3><p class="role"><%= m.title %></p>
+<% if (m.bio && !isPh(m.bio)) { paras(m.bio).forEach((x) => { %><p><%= x %></p><% }) } else { %><%- ph(m.bio || '[ADD BIO]') %><% } %></div></article><% }) %></div></div></section>
+<%- include('partials/cta', { ctaTitle: 'Researching contractors?', ctaText: 'Review our projects, then tell us about your field.' }) %>

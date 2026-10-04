@@ -1,0 +1,6 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin · <%= S.name %></title><meta name="robots" content="noindex">
+<link rel="stylesheet" href="/css/admin.css"></head><body>
+<% if (typeof nav === 'undefined' || nav !== false) { %><div class="top"><b>Greenway Admin</b><a href="/admin">Dashboard</a>
+<% Object.keys(schemas).forEach((k) => { %><a href="/admin/<%= k %>" class="<%= (typeof c !== 'undefined' && c === k) ? 'on' : '' %>"><%= schemas[k].label %></a><% }) %>
+<a href="/admin/leads">Leads</a><a href="/admin/settings">Settings</a><a href="/" target="_blank">View site ↗</a><a href="/admin/logout">Log out</a></div><% } %>
+<div class="main">

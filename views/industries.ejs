@@ -1,0 +1,3 @@
+<section class="page-hd"><div class="wrap"><h1>Who We Serve</h1><p class="lead"><%= S.name %> works with the organizations responsible for community, school and campus athletic fields.</p></div></section>
+<section class="sec"><div class="wrap"><div class="grid g3 ind"><% industriesNav.forEach((i) => { %><a class="card ind-c" href="/industries/<%= i.slug %>"><%- icon(i.icon) %><div><h3><%= i.name %></h3><p><%= i.short %></p></div></a><% }) %></div></div></section>
+<%- include('partials/cta') %>

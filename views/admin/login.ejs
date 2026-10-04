@@ -1,0 +1,5 @@
+<%- include('_top', { nav: false }) %>
+<div class="box" style="max-width:380px;margin:80px auto"><h1>Admin login</h1>
+<% if (disabled) { %><p class="err">Admin is disabled. Set the <code>ADMIN_PASSWORD</code> environment variable on the server.</p><% } else { %>
+<% if (err) { %><p class="err"><%= err %></p><% } %>
+<form method="post" action="/admin/login"><label>Password<input type="password" name="password" autofocus required></label><p><button class="btn">Log in</button></p></form><% } %></div></div></body></html>

@@ -1,0 +1,7 @@
+<a class="pcard" href="/projects/<%= p.slug %>">
+  <%- pic(p.heroImage || p.afterImage, p.name + ' athletic field project in ' + projLoc(p), p.name + ' cover photo') %>
+  <div class="pcard-b"><h3><%= p.name %></h3>
+  <p class="meta"><%- icon('pin') %> <%= projLoc(p) %><% if (p.year) { %> · <%= p.year %><% } %></p>
+  <% if ((p.sports||[]).length || p.projectType) { %><p class="tags"><% (p.sports||[]).concat(p.projectType ? [p.projectType] : []).forEach((t) => { %><span><%= t %></span><% }) %></p><% } %>
+  <span class="more">View project <%- icon('arrow') %></span></div>
+</a>

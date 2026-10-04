@@ -1,0 +1,50 @@
+<%
+const url = base + '/services/' + sv.slug;
+meta.ld = [{ '@type': 'Service', name: sv.name, description: sv.short, url, provider: { '@id': base + '/#org' }, areaServed: S.serviceArea, serviceType: sv.name }];
+if (faqs.length) meta.ld.push({ '@type': 'FAQPage', mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) });
+const ctaL = sv.ctaLabel || 'Request a Field Assessment';
+%>
+<section class="hero dark hero-sm">
+  <% if (sv.heroImage) { %><img class="hero-media" src="<%= sv.heroImage %>" alt="<%= sv.name %> by <%= S.name %>" fetchpriority="high"><% } else { %><div class="hero-media turf"></div><% } %>
+  <div class="hero-shade"></div>
+  <div class="wrap hero-in"><p class="eyebrow"><%= CAT_LABEL[sv.category] || 'Service' %></p>
+  <h1><%= sv.heroHeadline || sv.name %></h1>
+  <p class="lead"><%= sv.intro || sv.short %></p>
+  <a class="btn btn-primary btn-lg" href="/contact?service=<%= sv.slug %>" data-track="cta_request_assessment" data-loc="service_hero"><%= ctaL %> <%- icon('arrow') %></a>
+  <% if (!sv.heroImage) { %><%- ph('[ADD HERO PHOTO: ' + sv.name + ' in progress. Admin → Services]') %><% } %></div>
+</section>
+
+<section class="sec"><div class="wrap two">
+  <div class="prose"><h2>What Is <%= sv.name %>?</h2>
+    <% if (sv.what) { paras(sv.what).forEach((x) => { %><p><%= x %></p><% }) } else { %><%- ph('[ADD: plain-language explanation of ' + sv.name + ']') %><p><%= sv.short %></p><% } %>
+    <h2>Why Does Your Field Need It?</h2>
+    <% if (sv.why.length) { %><ul class="checks"><% sv.why.forEach((x) => { %><li><%- icon('check') %><%= x %></li><% }) %></ul><% } else { %><%- ph('[ADD: the field problems this service solves]') %><% } %>
+    <h2>What Greenway Does</h2>
+    <% if (sv.whatWeDo && !isPh(sv.whatWeDo)) { paras(sv.whatWeDo).forEach((x) => { %><p><%= x %></p><% }) } else { %><%- ph(sv.whatWeDo || '[ADD GREENWAY PROCESS: how Greenway performs this work]') %><% } %>
+    <h2>Signs Your Field May Need This Service</h2>
+    <% if (sv.signs.length) { %><ul class="checks"><% sv.signs.forEach((x) => { %><li><%- icon('check') %><%= x %></li><% }) %></ul><% } else { %><%- ph('[ADD: visible signs a field manager would recognize]') %><% } %>
+  </div>
+  <aside class="side"><div class="card side-cta"><h3><%= sv.ctaPrompt || 'Think your field may need a professional assessment?' %></h3>
+    <a class="btn btn-primary" href="/contact?service=<%= sv.slug %>" data-track="cta_request_assessment" data-loc="service_side"><%= ctaL %></a>
+    <% if (S.phone) { %><a class="btn btn-outline" href="tel:<%= tel %>" data-track="phone_click">Talk to Greenway</a><% } %></div></aside>
+</div></section>
+
+<% if (sv.beforeImage || sv.afterImage || S.showPlaceholders) { %>
+<section class="sec sand"><div class="wrap"><h2>Before &amp; After</h2>
+<div class="grid g2 ba"><figure><%- pic(sv.beforeImage, 'Before ' + sv.name, 'BEFORE: ' + sv.name) %><figcaption>Before</figcaption></figure><figure><%- pic(sv.afterImage, 'After ' + sv.name, 'AFTER: ' + sv.name) %><figcaption>After</figcaption></figure></div></div></section>
+<% } %>
+<% if (sv.videoUrl) { %><section class="sec"><div class="wrap narrow"><h2>Watch</h2><div class="vid-wrap" data-track-video="<%= sv.slug %>"><%- H.video(sv.videoUrl) %></div></div></section><% } %>
+<% if (sv.gallery.length) { %><section class="sec"><div class="wrap"><h2>Gallery</h2><div class="gallery"><% sv.gallery.forEach((g, i) => { %><%- pic(g, sv.name + ' photo ' + (i + 1), '') %><% }) %></div></div></section><% } %>
+
+<section class="sec"><div class="wrap"><h2>Related Projects</h2>
+<% if (projs.length) { %><div class="grid g3"><% projs.slice(0, 3).forEach((p) => { %><%- include('partials/projectcard', { p }) %><% }) %></div>
+<% } else { %><%- ph('[ADD: tag projects with “' + sv.name + '” in Admin → Projects → Services used. They appear here automatically.]') %><% } %></div></section>
+
+<%- include('partials/testimonials', { tests, tphLabel: '[ADD TESTIMONIAL for ' + sv.name + ': Admin → Testimonials → Related services]' }) %>
+
+<% if (faqs.length) { %><section class="sec sand"><div class="wrap narrow"><h2>Frequently Asked Questions</h2>
+<% faqs.forEach((f) => { %><details class="faq"><summary><%= f.q %></summary><p><%= f.a %></p></details><% }) %></div></section><% } %>
+
+<% if (related.length) { %><section class="sec"><div class="wrap"><h2>Related Services</h2><div class="grid g4"><% related.forEach((s) => { %><a class="card svc" href="/services/<%= s.slug %>"><%- icon(s.icon) %><h3><%= s.name %></h3><p><%= s.short %></p></a><% }) %></div></div></section><% } %>
+
+<%- include('partials/cta', { ctaTitle: sv.ctaPrompt || 'Think your field may need professional assessment?', ctaText: 'Tell us what you are seeing and, if you can, send photos.', ctaButton: ctaL, ctaQuery: '?service=' + sv.slug }) %>

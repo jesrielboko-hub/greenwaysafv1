@@ -1,0 +1,9 @@
+<section class="page-hd"><div class="wrap"><h1>Athletic Field Services</h1>
+<p class="lead">Organized around what your field needs: build it, renovate it, fix a problem, or keep it performing.</p></div></section>
+<% Object.keys(CAT_LABEL).forEach((k) => { const list = services.filter((s) => s.category === k); if (!list.length) return; %>
+<section class="sec <%= k === 'renovate' || k === 'maintain' ? 'sand' : '' %>" id="<%= k %>"><div class="wrap">
+  <p class="eyebrow dk"><%= CAT_LABEL[k] %></p><h2><%= CAT_BLURB[k][0] %></h2>
+  <div class="grid g4"><% list.forEach((s) => { %><a class="card svc" href="/services/<%= s.slug %>"><%- icon(s.icon) %><h3><%= s.name %></h3><p><%= s.short %></p><span class="more">Learn about this service <%- icon('arrow') %></span></a><% }) %></div>
+</div></section>
+<% }) %>
+<%- include('partials/cta') %>

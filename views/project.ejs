@@ -1,0 +1,38 @@
+<%
+meta.ld = [{ '@type': 'Article', headline: pr.name + ' – ' + projLoc(pr), description: meta.description, url: base + '/projects/' + pr.slug, author: { '@id': base + '/#org' }, publisher: { '@id': base + '/#org' }, about: pr.name, ...(pr.heroImage ? { image: base + pr.heroImage } : {}) }];
+const block = (title, txt, ph) => { %><div class="prose-block"><h2><%= title %></h2><% if (txt) { paras(txt).forEach((x) => { %><p><%= x %></p><% }) } else { %><%- ph %><% } %></div><% };
+%>
+<section class="hero dark hero-sm">
+  <% if (pr.heroImage || pr.afterImage) { %><img class="hero-media" src="<%= pr.heroImage || pr.afterImage %>" alt="<%= pr.name %>, <%= projLoc(pr) %>" fetchpriority="high"><% } else { %><div class="hero-media turf"></div><% } %>
+  <div class="hero-shade"></div>
+  <div class="wrap hero-in"><p class="eyebrow">Project<% if (pr.projectType) { %> · <%= pr.projectType %><% } %></p><h1><%= pr.name %></h1>
+  <p class="lead"><%- icon('pin') %> <%= projLoc(pr) %><% if (pr.year) { %> · Completed <%= pr.year %><% } %></p>
+  <% if (!(pr.heroImage || pr.afterImage)) { %><%- ph('[ADD HERO PHOTO for ' + pr.name + ': Admin → Projects]') %><% } %></div>
+</section>
+
+<section class="sec"><div class="wrap two">
+  <div class="prose">
+    <%- (block('Project Overview', pr.overview, ph('[ADD OVERVIEW for ' + pr.name + ']')), '') %>
+    <%- (block('The Challenge', pr.challenge, ph('[ADD CHALLENGE: what problem the field had]')), '') %>
+    <%- (block('The Greenway Solution', pr.solution, ph('[ADD SOLUTION: what Greenway did]')), '') %>
+    <div class="prose-block"><h2>Scope of Work</h2>
+    <% if (pr.scope.length) { %><ul class="checks"><% pr.scope.forEach((x) => { %><li><%- icon('check') %><%= x %></li><% }) %></ul><% } else { %><%- ph('[ADD SCOPE OF WORK: one item per line]') %><% } %></div>
+    <%- (block('The Result', pr.result, ph('[ADD RESULT: confirmed outcome only]')), '') %>
+  </div>
+  <aside class="side"><div class="card facts"><h3>Project Facts</h3><dl>
+    <dt>Location</dt><dd><%= projLoc(pr) %></dd>
+    <dt>Year completed</dt><dd><%= pr.year || '—' %></dd>
+    <dt>Client type</dt><dd><% if (client) { %><a href="/industries/<%= client.slug %>"><%= client.name %></a><% } else { %>—<% } %></dd>
+    <dt>Sport / field</dt><dd><%= (pr.sports || []).join(', ') || '—' %></dd>
+    <dt>Services used</dt><dd><% if (used.length) { used.forEach((s, i) => { %><a href="/services/<%= s.slug %>"><%= s.name %></a><%= i < used.length - 1 ? ', ' : '' %><% }) } else { %>—<% } %></dd></dl>
+    <a class="btn btn-primary" href="/contact?project=<%= pr.slug %>" data-track="cta_request_assessment" data-loc="project_side">Request a Field Assessment</a></div></aside>
+</div></section>
+
+<section class="sec sand"><div class="wrap"><h2>Problem → Work → Result</h2>
+  <div class="grid g2 ba"><figure><%- pic(pr.beforeImage, 'Before: ' + pr.name, 'BEFORE: ' + pr.name) %><figcaption>Before</figcaption></figure><figure><%- pic(pr.afterImage, 'After: ' + pr.name, 'AFTER: ' + pr.name) %><figcaption>After</figcaption></figure></div></div></section>
+<% if (pr.videoUrl) { %><section class="sec"><div class="wrap narrow"><h2>Project Video</h2><div class="vid-wrap" data-track-video="<%= pr.slug %>"><%- H.video(pr.videoUrl) %></div></div></section><% } %>
+<section class="sec"><div class="wrap"><h2>Project Gallery</h2>
+  <% if (pr.gallery.length) { %><div class="gallery"><% pr.gallery.forEach((g, i) => { %><%- pic(g, pr.name + ' photo ' + (i + 1), '') %><% }) %></div><% } else { %><%- ph('[ADD GALLERY PHOTOS: Admin → Projects → Project gallery (multi-upload)]') %><% } %></div></section>
+<%- include('partials/testimonials', { tests, tphLabel: '[ADD PROJECT TESTIMONIAL: Admin → Testimonials → Related project]' }) %>
+<% if (rel.length) { %><section class="sec sand"><div class="wrap"><h2>Related Projects</h2><div class="grid g3"><% rel.forEach((p) => { %><%- include('partials/projectcard', { p }) %><% }) %></div></div></section><% } %>
+<%- include('partials/cta', { ctaTitle: 'Have a field like this?', ctaText: 'Tell us about your project and we will help identify the right next step.', ctaButton: 'Discuss Your Project' }) %>

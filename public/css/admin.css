@@ -1,0 +1,11 @@
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 Inter,system-ui,sans-serif;background:#f3f5f2;color:#1F2D24}a{color:#0F5132}
+.top{background:#1F2D24;color:#fff;display:flex;gap:6px;align-items:center;padding:0 20px;flex-wrap:wrap}.top b{margin-right:16px;padding:14px 0;font-family:Montserrat,sans-serif}.top a{color:#cfd9d2;text-decoration:none;padding:14px 10px;font-size:14px}.top a:hover,.top a.on{color:#fff;background:#0F5132}
+.main{max-width:980px;margin:26px auto;padding:0 20px}h1{font-family:Montserrat,sans-serif;font-size:24px;margin:0 0 18px}
+.box{background:#fff;border:1px solid #dfe3dc;border-radius:10px;padding:22px;margin-bottom:18px}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:10px 8px;border-bottom:1px solid #eceee9;vertical-align:top}th{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#55625a}
+.btn{display:inline-block;background:#0F5132;color:#fff;border:0;border-radius:6px;padding:10px 16px;font:600 14px Inter;cursor:pointer;text-decoration:none}.btn.sec{background:#e6eae3;color:#1F2D24}.btn.del{background:#b3261e}
+label{display:block;font-weight:600;margin:14px 0 4px}label small{font-weight:400;color:#55625a}input[type=text],input[type=number],input[type=password],select,textarea{width:100%;padding:9px;border:1.5px solid #c9cfc6;border-radius:6px;font:inherit;background:#fff}textarea{min-height:90px}
+.chk{display:flex;gap:8px;align-items:center;font-weight:500}.chk input{width:auto}.multi{display:flex;flex-wrap:wrap;gap:6px 18px;border:1.5px solid #c9cfc6;border-radius:6px;padding:10px;max-height:170px;overflow:auto}.multi label{margin:0;font-weight:500;display:flex;gap:6px;align-items:center}
+.thumb{max-width:160px;max-height:100px;border-radius:6px;display:block;margin:6px 0}.thumbs{display:flex;gap:8px;flex-wrap:wrap}.ok{background:#e3f4e5;border:1px solid #9fd3a4;padding:10px;border-radius:6px;margin-bottom:14px}.err{background:#fde8e8;padding:10px;border-radius:6px}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}.stats a{background:#fff;border:1px solid #dfe3dc;border-radius:10px;padding:16px;text-decoration:none}.stats b{display:block;font:800 28px Montserrat}
+.sticky{position:sticky;bottom:0;background:#fff;padding:12px 0;border-top:1px solid #dfe3dc;display:flex;gap:10px}

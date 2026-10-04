@@ -1,0 +1,4 @@
+<section class="page-hd"><div class="wrap"><h1>Athletic Field Resources</h1><p class="lead">Guides, articles and videos from the team that builds and maintains athletic fields.</p></div></section>
+<section class="sec"><div class="wrap"><div class="grid g3"><% list.forEach((r) => { %><a class="card pcard" href="/resources/<%= r.slug %>"><%- pic(r.image, r.title, r.title + ' image') %><div class="pcard-b"><p class="tags"><span><%= r.type %></span></p><h3><%= r.title %></h3><p><%= r.summary %></p><span class="more">Read more <%- icon('arrow') %></span></div></a><% }) %></div>
+<%- ph('[ADD: articles, videos, FAQs and downloadable guides in Admin → Resources]') %></div></section>
+<%- include('partials/cta') %>

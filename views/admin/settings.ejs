@@ -1,0 +1,12 @@
+<%- include('_top') %>
+<h1>Business settings</h1><% if (saved) { %><p class="ok">Saved.</p><% } %>
+<form method="post" action="/admin/settings" enctype="multipart/form-data" class="box">
+<% [['name','Business name (used everywhere: titles, schema, footer)'],['shortName','Short name'],['tagline','Tagline'],['phone','Phone (click-to-call)'],['email','Contact email (confirm the current address)'],['address','Address (optional)'],['serviceArea','Service area (only confirmed geography)'],['siteUrl','Site URL (canonical, e.g. https://www.greenwayafs.com)'],['heroHeadline','Homepage headline'],['linkedin','LinkedIn URL'],['facebook','Facebook URL'],['instagram','Instagram URL'],['youtube','YouTube URL'],['gaId','Google Analytics 4 ID (G-XXXXXXX)'],['leadWebhook','Lead notification webhook URL (Slack/Zapier/Make, optional)'],['legacyNote','Optional historical note shown in footer/About (leave blank to omit)']].forEach((f) => { %>
+<label><%= f[1] %></label><input type="text" name="<%= f[0] %>" value="<%= S[f[0]] || '' %>"><% }) %>
+<label>Homepage supporting copy</label><textarea name="heroSub"><%= S.heroSub %></textarea>
+<label>Credibility stats <small>(one per line: 135+|Years|Combined Experience)</small></label><textarea name="stats"><%= S.stats %></textarea>
+<label>Hero image</label><% if (S.heroImage) { %><img class="thumb" src="<%= S.heroImage %>" alt=""><% } %><input type="text" name="heroImage" value="<%= S.heroImage || '' %>"><input type="file" name="heroImage" accept="image/*">
+<label>Hero video (MP4 path, optional)</label><input type="text" name="heroVideo" value="<%= S.heroVideo || '' %>"><input type="file" name="heroVideo" accept="video/mp4">
+<label>Social share image (Open Graph)</label><input type="text" name="ogImage" value="<%= S.ogImage || '' %>"><input type="file" name="ogImage" accept="image/*">
+<label class="chk"><input type="checkbox" name="showPlaceholders" <%= S.showPlaceholders ? 'checked' : '' %>> Show yellow “[ADD …]” placeholders and photo slots (turn OFF before launch)</label>
+<div class="sticky"><button class="btn">Save settings</button></div></form></div></body></html>

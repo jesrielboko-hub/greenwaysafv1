@@ -1,0 +1,15 @@
+<section class="page-hd"><div class="wrap"><h1>Athletic Field Projects</h1>
+<p class="lead">Completed construction, renovation and maintenance work. Filter to find projects like yours.</p></div></section>
+<section class="sec"><div class="wrap">
+<form class="filters" method="get" action="/projects">
+  <% [['sport','Sport'],['type','Project type'],['state','Location'],['year','Year']].forEach((f) => { if (opts[f[0]].length) { %>
+  <label><span><%= f[1] %></span><select name="<%= f[0] %>" onchange="this.form.submit()"><option value="">All</option><% opts[f[0]].forEach((o) => { %><option <%= String(q[f[0]]) === String(o) ? 'selected' : '' %>><%= o %></option><% }) %></select></label>
+  <% } }) %>
+  <label><span>Service</span><select name="service" onchange="this.form.submit()"><option value="">All</option><% services.forEach((s) => { %><option value="<%= s.slug %>" <%= q.service === s.slug ? 'selected' : '' %>><%= s.name %></option><% }) %></select></label>
+  <% if (Object.keys(q).length) { %><a class="clear" href="/projects">Clear filters</a><% } %><noscript><button class="btn btn-outline">Apply</button></noscript>
+</form>
+<% if (list.length) { %><div class="grid g3"><% list.forEach((p) => { %><%- include('partials/projectcard', { p }) %><% }) %></div>
+<% } else { %><p>No projects match those filters yet. <a href="/projects">See all projects</a>.</p><% } %>
+<%- ph('[ADD MORE PROJECTS: Admin → Projects → Add. Sport, type, location, service and year filters appear automatically once those fields are filled in.]') %>
+</div></section>
+<%- include('partials/cta', { ctaTitle: 'Planning a similar project?', ctaText: 'Tell us about your field and what you want to achieve.', ctaButton: 'Discuss Your Project' }) %>

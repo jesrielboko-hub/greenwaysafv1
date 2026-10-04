@@ -1,0 +1,6 @@
+<%- include('_top') %>
+<h1><%= sch.label %> <a class="btn" style="float:right" href="/admin/<%= c %>/new">+ Add <%= sch.singular %></a></h1>
+<div class="box"><table><tr><th>Name</th><th>Details</th><th>Status</th></tr>
+<% items.forEach((it) => { %><tr><td><a href="/admin/<%= c %>/<%= it.slug %>"><%= it[sch.title] || it.slug %></a></td>
+<td><%= [it.category, it.city && (it.city + ', ' + it.state), it.year, it.type, it.organization].filter(Boolean).join(' · ') %></td><td><%= it.published === false ? 'Draft' : 'Live' %></td></tr><% }) %>
+<% if (!items.length) { %><tr><td colspan="3">Nothing here yet.</td></tr><% } %></table></div></div></body></html>

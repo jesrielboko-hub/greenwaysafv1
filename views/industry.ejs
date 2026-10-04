@@ -1,0 +1,10 @@
+<section class="hero dark hero-sm"><% if (ind.heroImage) { %><img class="hero-media" src="<%= ind.heroImage %>" alt="<%= ind.name %> athletic field"><% } else { %><div class="hero-media turf"></div><% } %><div class="hero-shade"></div>
+<div class="wrap hero-in"><p class="eyebrow">Who we serve</p><h1>Athletic Field Services for <%= ind.name %></h1><p class="lead"><%= ind.short %></p>
+<a class="btn btn-primary btn-lg" href="/contact" data-track="cta_request_assessment" data-loc="industry_hero">Request a Field Assessment <%- icon('arrow') %></a></div></section>
+<section class="sec"><div class="wrap two"><div class="prose">
+  <% if (ind.intro) { paras(ind.intro).forEach((x) => { %><p><%= x %></p><% }) } else { %><p><%= S.name %> constructs, renovates and maintains athletic fields for <%= ind.name.toLowerCase() %>.</p><%- ph('[ADD: how Greenway works with ' + ind.name + ': experience, typical projects, procurement notes]') %><% } %>
+  <% if (ind.needs.length) { %><h2>What These Organizations Typically Need</h2><ul class="checks"><% ind.needs.forEach((x) => { %><li><%- icon('check') %><%= x %></li><% }) %></ul><% } %></div></div></section>
+<section class="sec sand"><div class="wrap"><h2>Relevant Services</h2><div class="grid g4"><% svcs.forEach((s) => { %><a class="card svc" href="/services/<%= s.slug %>"><%- icon(s.icon) %><h3><%= s.name %></h3><p><%= s.short %></p></a><% }) %></div></div></section>
+<section class="sec"><div class="wrap"><h2>Relevant Projects</h2><% if (projs.length) { %><div class="grid g3"><% projs.forEach((p) => { %><%- include('partials/projectcard', { p }) %><% }) %></div><% } else { %><%- ph('[ADD: set “Client type” to ' + ind.name + ' on projects to list them here]') %><% } %></div></section>
+<%- include('partials/testimonials', { tests, tphLabel: '[ADD TESTIMONIAL from a ' + ind.name + ' client]' }) %>
+<%- include('partials/cta') %>

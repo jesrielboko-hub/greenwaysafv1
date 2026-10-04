@@ -1,0 +1,8 @@
+<% meta.ld = [{ '@type': 'Article', headline: r.title, description: r.summary, author: { '@id': base + '/#org' }, publisher: { '@id': base + '/#org' } }]; %>
+<section class="page-hd"><div class="wrap narrow"><p class="eyebrow dk"><%= r.type %></p><h1><%= r.title %></h1><p class="lead"><%= r.summary %></p>
+<% if (r.file) { %><a class="btn btn-primary" href="<%= r.file %>" download data-track="guide_download">Download the <%= r.title %> Guide <%- icon('download') %></a><% } else { %><a class="btn btn-primary" href="/contact?resource=<%= r.slug %>" data-track="guide_request">Request the <%= r.title %> Guide <%- icon('arrow') %></a><%- ph('[ADD PDF: Admin → Resources → Downloadable file. The button then becomes a direct download.]') %><% } %></div></section>
+<section class="sec"><div class="wrap narrow prose">
+<% if (r.videoUrl) { %><div class="vid-wrap" data-track-video="<%= r.slug %>"><%- H.video(r.videoUrl) %></div><% } %>
+<% String(r.body || '').split('\n').filter((l) => l.trim()).forEach((l) => { if (l.startsWith('## ')) { %><h2><%= l.slice(3) %></h2><% } else { %><p><%= l %></p><% } }) %>
+<% if (!r.body) { %><%- ph('[ADD BODY TEXT: Admin → Resources]') %><% } %></div></section>
+<%- include('partials/cta') %>
